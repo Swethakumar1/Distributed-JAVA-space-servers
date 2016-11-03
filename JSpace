@@ -1,0 +1,139 @@
+*
+* To change this license header, choose License Headers in Project Properties.
+* To change this template file, choose Tools | Templates
+* and open the template in the editor.
+* To change this license header, choose License Headers in Project Properties.
+* To change this template file, choose Tools | Templates
+* and open the template in the editor.
+*/
+package JSpace;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+/**
+*
+* @author Swetha
+*/
+public class JSpace {
+private final int READ = 0;
+private final int WRITE = 1;
+private final int TAKE = 2;
+int SerID;
+Hashtable<Object, Object> hash = new Hashtable<>();
+String multicast_group = null;
+int port;
+int numSer;
+public JSpace(Connection[] connections, String group, int port_in) {
+multicast_group = group;
+port = port_in;
+SerID = 0;
+numSer = connections.length + 1;
+for (int i = 0; i < connections.length; i++) {
+try {
+//master send (1) Multicast group IP(2) Port(3) # of servers (4) Server ID to each
+slave
+connections[i].out.writeObject(multicast_group);
+connections[i].out.writeObject(port);
+connections[i].out.writeObject(numSer);
+connections[i].out.writeObject(i + 1);
+} catch (IOException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+}
+new SpaceThread().start();//start new Thread to recieve client
+Scanner in = new Scanner(System.in);
+while (true) {
+System.out.print("%");
+String readLine = in.nextLine();
+switch (readLine) {//check the command
+case "show":
+int j = 0;
+System.out.print("Server0: \n");
+//output all the Entry in Hashtable
+for (Iterator itr = hash.keySet().iterator(); itr.hasNext();) {
+Object key = itr.next();
+Entry entry = (Entry) hash.get(key);
+System.out.println(j + ": " + entry.getType() + " " + entry.getName() + " "
++ entry.getValue() + "\n");
+j++;
+}
+for (int i = 0; i < connections.length; i++) {
+System.out.print("Server" + (int) (i + 1) + ":\n");
+try {
+connections[i].out.writeObject(readLine);//write message to each slave
+connections[i].out.flush();
+System.out.print(connections[i].in.readObject());//output all the Entry in
+Hashtable of each slave
+} catch (IOException | ClassNotFoundException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+}
+break;
+case "quit":
+for (int i = 0; i < connections.length; i++) {
+try {
+connections[i].out.writeObject(readLine);
+connections[i].out.flush();
+System.out.print(connections[i].in.readObject());//wait for exit message
+from each slave
+} catch (IOException | ClassNotFoundException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+}
+System.exit(0);
+default:
+break;
+} }
+}
+public JSpace(Connection connection) {
+try {
+//receive (1) Multicast group IP (2) Port (3) # of servers (4) Server ID
+multicast_group = (String) connection.in.readObject();
+port = (int) connection.in.readObject();
+numSer = (int) connection.in.readObject();
+SerID = (int) connection.in.readObject();
+new SpaceThread().start(); //start new Thread to recieve client
+} catch (IOException | ClassNotFoundException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+while (true) {
+try {
+String command = (String) connection.in.readObject();//receive command
+from master
+switch (command) {
+case "show":
+String output = new String();
+int j = 0;
+for (Iterator itr = hash.keySet().iterator(); itr.hasNext();) {
+//get all the entry and put into one String
+Object key = itr.next();
+Entry entry = (Entry) hash.get(key);
+output = output + j + ": " + entry.getType() + " " + entry.getName() + "
+" + entry.getValue() + "\n";
+j++;
+}
+connection.out.writeObject(output);
+connection.out.flush();
+break;
+case "quit":
+connection.out.writeObject("Server " + SerID + " has exitted\n");
+connection.out.flush();
+System.exit(0);
+default:
+break;
+}
+} catch (IOException | ClassNotFoundException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+} }
