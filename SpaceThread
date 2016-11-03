@@ -1,0 +1,30 @@
+private class SpaceThread extends Thread {
+@Override
+public void run() {
+if (port >= 0) {
+InetAddress group;
+try {
+group = InetAddress.getByName(multicast_group);
+MulticastSocket socket = new MulticastSocket(port);
+socket.joinGroup(group);//join the multicast group
+if (SerID == 0) {
+//only master could use System.out
+System.out.printf(multicast_group + " " + port + "\n");
+}
+while (true) {
+byte[] buf = new byte[1024];
+DatagramPacket p
+= new DatagramPacket(buf, buf.length);
+socket.receive(p);
+InetAddress addr = p.getAddress();
+Entry entry = Entry.deserialize(buf); 
+new SessionThread(addr, entry).start();
+}
+} catch (UnknownHostException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+} catch (IOException | ClassNotFoundException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+}
+}
+}
