@@ -1,0 +1,74 @@
+private class SessionThread extends Thread {
+private InetAddress addr;
+private Entry entry;
+@Override
+public void run() {
+byte[] buf;
+DatagramPacket p;
+DatagramSocket socket;
+String varType = entry.getType();
+String name = entry.getName();
+switch (SerID) {
+//Decide which server should get this Entry
+//Depends on the Type of entry
+case 0:
+if(name.charAt(0)>='A'&&name.charAt(0)<='K')
+{
+break;
+}
+return;
+case 1:
+if(name.charAt(0)>='L'&&name.charAt(0)<='Z') {
+break;
+}
+return;
+case 2:
+if(name.charAt(0)>='a'&&name.charAt(0)<='k') {
+break;
+}
+return;
+case 3:
+if(name.charAt(0)>='l'&&name.charAt(0)<='z') {
+break;
+}
+return;
+default:
+return;
+}
+switch (entry.getOperation()) {
+//Do the operation of entry
+case WRITE:
+hash.put(entry.getName(), entry);
+break;
+case TAKE:
+try {
+Entry rentry = (Entry) hash.get(entry.getName());
+buf = Entry.serialize(rentry);
+p = new DatagramPacket(buf, buf.length, addr, port);
+socket = new DatagramSocket();
+socket.send(p);//send the entry in hashtable
+} catch (IOException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+hash.remove(entry.getName());//delete the entry in hashtable
+break; 
+case READ:
+try {
+Entry rentry = (Entry) hash.get(entry.getName());
+buf = Entry.serialize(rentry);
+p = new DatagramPacket(buf, buf.length, addr, port);
+socket = new DatagramSocket();
+socket.send(p);//send the entry in hashtable
+} catch (IOException ex) {
+Logger.getLogger(JSpace.class.getName()).log(Level.SEVERE, null, ex);
+}
+break;
+default:
+break;
+} }
+public SessionThread(InetAddress addr, Entry entry) throws IOException {
+this.addr = addr;
+this.entry = entry;
+}
+}
+}
